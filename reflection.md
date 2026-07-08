@@ -29,10 +29,16 @@ Brainstorm Ideas
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+    I think the initial UML design is pretty solid, having the main relationships between the classes is what is most important. I did not spot any immediate issues.
+
+    We have plenty of attributes for each class that allow for Owners and pets to have a direct relationship. Owner just has its name and list of pets or pet. we are allowed to add, remove, and get pets(). For Pets, we have plenty of attributes such as name, species, its owner, a list of tasks, Walking time and duration. Task extends the pets class, by allowing each pet to have any additional care tasks, holding attributes like title, time, duration_minutes, most importantly priority, and a completed attribute. Schedule extends both pet and task, by allowing to build scheudle based on pets walks, and any additional tasks provided for each pet. Attributes especially important is date, time, and list of tasks. Having additional methods to explain the schedule, build_plan, today's tasks, and etc.
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+    Yes, I added a has_tasks() attribute to the pet. Which makes it easier for the sceduler to navigate a pet based soley on walking schedule or having to check for additional tasks to schedule. 
 
 ---
 

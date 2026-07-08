@@ -1,15 +1,71 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
+    %% PawPal+ class diagram
+    %% Source of truth: pawpal_system.py (+ app.py UI layer).
     %% Keep this file updated so it matches your final implementation.
 
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +str name
+        +List~Pet~ pets
+        +add_pet(pet: Pet) void
+        +remove_pet(pet: Pet) void
+        +get_pets() List~Pet~
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +str name
+        +str species
+        +str walk_time
+        +int walk_duration
+        +Owner owner
+        +List~Task~ tasks
+        +add_task(task: Task) void
+        +remove_task(task: Task) void
+        +get_tasks() List~Task~
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +str title
+        +str time
+        +int duration_minutes
+        +Priority priority
+        +bool completed
+        +mark_done() void
+        +reschedule(time: str) void
+    }
+
+    class Schedule {
+        +date day
+        +Pet pet
+        +List~Task~ tasks
+        +add_task(task: Task) void
+        +remove_task(task: Task) void
+        +todays_tasks() List~Task~
+        +build_plan() List~Task~
+        +explain() str
+    }
+
+    class Priority {
+        <<enumeration>>
+        LOW
+        MEDIUM
+        HIGH
+    }
+
+    class PawPalApp {
+        <<Streamlit UI>>
+        +collect_owner_input() Owner
+        +collect_pet_input() Pet
+        +collect_tasks() List~Task~
+        +generate_schedule() Schedule
+        +render_plan(schedule: Schedule) void
+    }
+
+    %% Relationships
+    Owner "1" o-- "*" Pet : owns (Pet.owner back-ref)
+    Pet "1" *-- "*" Task : has care tasks
+    Schedule "*" --> "1" Pet : plans for
+    Schedule "1" o-- "*" Task : orders
+    Task "*" --> "1" Priority : ranked by
+    PawPalApp ..> Owner : creates
+    PawPalApp ..> Pet : creates
+    PawPalApp ..> Schedule : builds & displays
