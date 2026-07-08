@@ -5,7 +5,7 @@ from datetime import date, time
 
 import streamlit as st
 
-from pawpal_system import Owner, Pet, Schedule, Task
+from pawpal_system import Owner, Pet, Schedule, Scheduler, Task
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -76,6 +76,9 @@ if not pets:
     st.info("No pets yet. Add one above to start planning.")
     st.stop()
 
+# Scheduler runs the algorithms (sorting, filtering, conflicts) over the owner.
+scheduler = Scheduler(owner)
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -112,21 +115,35 @@ if task_submitted and task_title.strip():
 
 tasks = pet.get_tasks()
 if tasks:
-    st.write(f"Current tasks for {pet.name}:")
+    pending_only = st.checkbox("Show pending tasks only", value=False)
+
+    # Scheduler.filter_by_status + Scheduler.sort_by_time drive the table.
+    shown = scheduler.filter_by_status(tasks, completed=False) if pending_only else tasks
+    shown = scheduler.sort_by_time(shown)
+
+    st.write(f"Current tasks for {pet.name} (sorted by time):")
     st.table(
         [
             {
-                "title": t.title,
                 "time": t.time,
-                "duration_minutes": t.duration_minutes,
+                "title": t.title,
+                "duration": f"{t.duration_minutes} min",
                 "priority": str(t.priority),
-                "done": t.completed,
+                "status": "done" if t.completed else "pending",
             }
-            for t in tasks
+            for t in shown
         ]
     )
 else:
     st.info("No tasks yet. Add one above (the daily walk is included automatically).")
+
+# Conflict check across all of the owner's pets.
+conflicts = scheduler.detect_conflicts()
+if conflicts:
+    for warning in conflicts:
+        st.warning(warning)
+else:
+    st.success("No scheduling conflicts.")
 
 st.divider()
 
@@ -141,6 +158,7 @@ if st.button("Generate schedule"):
     if not plan:
         st.info("Nothing to schedule yet — add a task above.")
     else:
+        st.success(f"Planned {len(plan)} task(s) for {pet.name}.")
         st.markdown(f"### Today's Schedule for {pet.name} ({pet.species})")
         st.table(
             [
