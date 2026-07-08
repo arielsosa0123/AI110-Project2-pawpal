@@ -29,8 +29,12 @@ classDiagram
         +int duration_minutes
         +Priority priority
         +bool completed
+        +str frequency
+        +date due_date
         +mark_done() void
         +reschedule(time: str) void
+        +is_recurring() bool
+        +next_occurrence() Task
     }
 
     class Schedule {
@@ -51,6 +55,16 @@ classDiagram
         HIGH
     }
 
+    class Scheduler {
+        +Owner owner
+        +sort_by_time(tasks: List~Task~) List~Task~
+        +filter_by_status(tasks: List~Task~, completed: bool) List~Task~
+        +filter_by_pet(pet_name: str) List~Task~
+        +all_tasks() List~Task~
+        +complete_task(task: Task, pet: Pet) Task
+        +detect_conflicts() List~str~
+    }
+
     class PawPalApp {
         <<Streamlit UI>>
         +collect_owner_input() Owner
@@ -66,6 +80,9 @@ classDiagram
     Schedule "*" --> "1" Pet : plans for
     Schedule "1" o-- "*" Task : orders
     Task "*" --> "1" Priority : ranked by
+    Scheduler "1" --> "1" Owner : operates on
+    Scheduler ..> Task : sorts / filters / recurs
+    Scheduler ..> Schedule : conflict checks
     PawPalApp ..> Owner : creates
     PawPalApp ..> Pet : creates
     PawPalApp ..> Schedule : builds & displays

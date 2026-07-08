@@ -7,9 +7,14 @@ ranking tasks.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from enum import IntEnum
+
+# How often a task repeats. "once" tasks never regenerate; "daily"/"weekly"
+# tasks spawn their next occurrence when completed.
+FREQUENCIES = ("once", "daily", "weekly")
 
 
 class Priority(IntEnum):
@@ -41,10 +46,17 @@ class Task:
     duration_minutes: int
     priority: Priority = Priority.MEDIUM
     completed: bool = False
+    frequency: str = "once"  # "once" | "daily" | "weekly"
+    due_date: date | None = None
 
     def __post_init__(self) -> None:
         # Accept "high"/3/Priority.HIGH from callers (e.g. the Streamlit UI).
         self.priority = Priority.from_value(self.priority)
+        self.frequency = self.frequency.strip().lower()
+        if self.frequency not in FREQUENCIES:
+            raise ValueError(
+                f"frequency must be one of {FREQUENCIES}, got {self.frequency!r}"
+            )
 
     def mark_done(self) -> None:
         """Mark this task as completed."""
@@ -53,6 +65,31 @@ class Task:
     def reschedule(self, time: str) -> None:
         """Move this task to a new time."""
         self.time = time
+
+    def is_recurring(self) -> bool:
+        """True if this task repeats (daily or weekly)."""
+        return self.frequency in ("daily", "weekly")
+
+    def next_occurrence(self) -> "Task | None":
+        """Return the next instance of a recurring task, or None if one-off.
+
+        The new task keeps the same time/duration/priority/frequency but is
+        not completed, and its due_date advances by one day (daily) or seven
+        days (weekly) from this task's due_date (or today if unset).
+        """
+        if not self.is_recurring():
+            return None
+        step = timedelta(days=1) if self.frequency == "daily" else timedelta(days=7)
+        base = self.due_date or date.today()
+        return Task(
+            title=self.title,
+            time=self.time,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            completed=False,
+            frequency=self.frequency,
+            due_date=base + step,
+        )
 
 
 @dataclass
@@ -165,3 +202,87 @@ class Schedule:
         total = sum(task.duration_minutes for task in plan)
         lines.append(f"Total care time: {total} min across {len(plan)} task(s).")
         return "\n".join(lines)
+
+
+class Scheduler:
+    """Algorithms over an owner's tasks: sorting, filtering, recurrence, and
+    conflict detection.
+
+    Built around an :class:`Owner` so it can see every pet's tasks at once,
+    which is what makes cross-pet conflict detection and per-pet filtering
+    possible. The sorting/filtering helpers are static so they can also be
+    used on any loose list of tasks.
+    """
+
+    def __init__(self, owner: Owner | None = None) -> None:
+        self.owner = owner
+
+    # -- sorting -----------------------------------------------------------
+    @staticmethod
+    def sort_by_time(tasks: list[Task]) -> list[Task]:
+        """Return tasks ordered by their "HH:MM" time, earliest first.
+
+        Zero-padded 24-hour strings sort correctly as plain text, so the
+        lambda key just returns ``task.time`` -- no time parsing needed.
+        """
+        return sorted(tasks, key=lambda task: task.time)
+
+    # -- filtering ---------------------------------------------------------
+    @staticmethod
+    def filter_by_status(tasks: list[Task], completed: bool = False) -> list[Task]:
+        """Return only tasks whose completed flag matches ``completed``."""
+        return [task for task in tasks if task.completed == completed]
+
+    def all_tasks(self) -> list[Task]:
+        """Return every task across all of the owner's pets."""
+        tasks: list[Task] = []
+        if self.owner is not None:
+            for pet in self.owner.get_pets():
+                tasks.extend(pet.get_tasks())
+        return tasks
+
+    def filter_by_pet(self, pet_name: str) -> list[Task]:
+        """Return the tasks belonging to the pet with the given name."""
+        if self.owner is None:
+            return []
+        for pet in self.owner.get_pets():
+            if pet.name == pet_name:
+                return pet.get_tasks()
+        return []
+
+    # -- recurring tasks ---------------------------------------------------
+    def complete_task(self, task: Task, pet: Pet) -> Task | None:
+        """Mark a task complete and auto-create its next occurrence.
+
+        Returns the newly created follow-up task (added to ``pet``) for a
+        recurring task, or None for a one-off task.
+        """
+        task.mark_done()
+        follow_up = task.next_occurrence()
+        if follow_up is not None:
+            pet.add_task(follow_up)
+        return follow_up
+
+    # -- conflict detection ------------------------------------------------
+    def detect_conflicts(self) -> list[str]:
+        """Return warning strings for pending tasks sharing the same time slot.
+
+        Lightweight: it only compares exact start times (not overlapping
+        durations) and never raises -- an empty list means "no conflicts".
+        Tasks are compared across every pet, so a dog walk and a cat feeding
+        booked for the same minute are flagged.
+        """
+        by_time: dict[str, list[str]] = defaultdict(list)
+        if self.owner is not None:
+            for pet in self.owner.get_pets():
+                for task in pet.get_tasks():
+                    if not task.completed:
+                        by_time[task.time].append(f"{task.title} ({pet.name})")
+
+        warnings: list[str] = []
+        for slot, labels in sorted(by_time.items()):
+            if len(labels) > 1:
+                warnings.append(
+                    f"\N{WARNING SIGN} Conflict at {slot}: " + ", ".join(labels)
+                )
+        return warnings
