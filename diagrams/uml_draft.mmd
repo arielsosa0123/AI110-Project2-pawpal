@@ -1,0 +1,50 @@
+classDiagram
+    %% PawPal+ class diagram (draft)
+    %% Keep this file updated so it matches your final implementation.
+
+    class Owner {
+        +str name
+        +List~Pet~ pets
+        +add_pet(pet: Pet) void
+        +remove_pet(pet: Pet) void
+        +get_pets() List~Pet~
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +Owner owner
+        +List~Task~ tasks
+        +str walk_time
+        +int walk_duration
+        +add_task(task: Task) void
+        +remove_task(task: Task) void
+        +get_tasks() List~Task~
+    }
+
+    class Task {
+        +str title
+        +str time
+        +int duration_minutes
+        +str priority
+        +bool completed
+        +mark_done() void
+        +reschedule(time: str) void
+    }
+
+    class Schedule {
+        +date day
+        +Pet pet
+        +List~Task~ tasks
+        +add_task(task: Task) void
+        +remove_task(task: Task) void
+        +todays_tasks() List~Task~
+        +build_plan() List~Task~
+        +explain() str
+    }
+
+    Owner "1" --> "*" Pet : owns
+    Pet "1" --> "1" Owner : belongs to
+    Pet "1" --> "*" Task : has care tasks
+    Schedule "*" --> "1" Pet : plans for
+    Schedule "1" o-- "*" Task : contains

@@ -2,6 +2,28 @@
 
 ## 1. System Design
 
+Brainstorm Ideas
+- Pet
+    - Add a pet
+    - Remove a pet
+    - Name
+    - Time for walk and duration
+- Owner
+    - Add an Owner
+    - Remove an Owner
+    - Name
+    - Pet
+    - Time for walk and duration
+- Task
+    - New Task
+    - Remove
+    - Time
+    - Duration
+- Schedule
+    - Toaday's Tasks
+    - Add a Task
+    - Remove a task
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
